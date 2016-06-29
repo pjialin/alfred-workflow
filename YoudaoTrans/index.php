@@ -1,9 +1,10 @@
 <?php
 
 require ('workflows.php');
-$query = $_GET['q'];
-$Fanyi = new Fanyi();
-$Fanyi->Go($query);
+
+#$query = $_GET['q'];
+#$Fanyi = new Fanyi();
+#$Fanyi->Go($query);
 
 class Fanyi
 {
@@ -23,6 +24,17 @@ class Fanyi
         $this->w = new Workflows();   
     }
     
+    /**
+     * 处理操作
+     */
+    public function exec($info,$type = 'copy')
+    {
+        $info = json_decode($info);
+        if(isset($info->type)){
+            $this->w->result($this->getUid(),'http://baidu.com','exec','',$this->getIcon());
+            echo $this->w->toxml();
+        }
+    }
 
 	/**
 	 *  开始翻译
@@ -31,7 +43,7 @@ class Fanyi
 	{
 	    $transRes = $this->getTransRes($value);	
         $this->showAlfred($transRes,$value);
-        print_r($this->w->results());
+        echo $this->w->toxml();
 	}
 
 	/**
@@ -56,6 +68,9 @@ class Fanyi
      */ 
     protected function showAlfred($info,$query)
     {
+        $saveData = [
+            'url' => 'http://dict.youdao.com/search?q=' . $query,
+        ];
         if(isset($info->errorCode) && $info->errorCode != 0){
             $this->w->result($this->getUid(),'Error',$this->getErrorInfo($info->errorCode),'翻译出错',$this->getIcon());
         }else if(!empty($info->translation) && $info->translation[0]){
@@ -64,24 +79,24 @@ class Fanyi
             {
                 if(!empty($info->basic->phonetic))
                     $str .=  ' [' . $info->basic->phonetic . ']';
-                $this->w->result($this->getUid(),'',$str,'翻译结果',$this->getIcon());
+                $this->w->result($this->getUid(),$this->saveData(array_merge($saveData,['copy'=> $str])),$str,'翻译结果',$this->getIcon());
                 
                 if(!empty($info->basic->explains))
                 {
                     foreach($info->basic->explains as $v){
-                        $this->w->result($this->getUid(),'',$v,'简明释义',$this->getIcon());
+                        $this->w->result($this->getUid(),$this->saveData(array_merge($saveData,['copy'=> $str])),$v,'简明释义',$this->getIcon());
                     }
                 }
 
                 if(!empty($info->web)){
                     foreach($info->web as $v){
                         $tmp_v = implode(',',$v->value);
-                        $this->w->result($this->getUid(),'',$tmp_v,'网络释义：'. $v->key,$this->getIcon());
+                        $this->w->result($this->getUid(),$this->saveData(array_merge($saveData,['copy'=> $str])),$tmp_v,'网络释义：'. $v->key,$this->getIcon());
                     }
                 }
 
             }else{
-                $this->w->result($this->getUid(),'','有道翻译也爱莫能助了，按Enter键进行网上搜索','会不会是你拼错了呢？'. $query,$this->getIcon());
+                $this->w->result($this->getUid(),$this->saveData($saveData),'有道翻译也爱莫能助了，按Enter键进行网上搜索','会不会是你拼错了呢？'. $query,$this->getIcon());
             }
         }
         else 
@@ -151,6 +166,20 @@ class Fanyi
      * 获取图标
      */
     protected function getIcon($name = ''){
-        return 'default.icon';
+        return 'youdao.ico';
+    }
+
+    /**
+     * 存储返回数据
+     */
+    protected function saveData($name,$value = ''){
+        $data = [];
+        if(is_array($name) && !empty($name)){
+            foreach($name as $k => $v){
+                $data[$k] = $v;  
+            }
+        }else
+            $data[$name] = $value;
+        return json_encode($data);
     }
 }	
