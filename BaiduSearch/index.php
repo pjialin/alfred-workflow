@@ -1,12 +1,19 @@
 <?php
-BaiduSearch::Go('林子互联');
+
+require ('workflows.php');
+
+# BaiduSearch::Go('content');
+
 class BaiduSearch{
     static protected $searchUrl = 'https://www.baidu.com/s?w=';
+    /** workflow ins */
+    static protected $w;
+    /** save curl error */
+    static protected $curlError;
 
 	static public function Go($query)
 	{
-        self::DoSearch($query);
-
+        self::DoSearch(urlencode($query));
 	}
 
 	/**
@@ -14,9 +21,12 @@ class BaiduSearch{
 	 */
     static protected function DoSearch($query)
     {
+        self::$w = new Workflows();
         $searchRes = self::getSearchContent($query);  
         $searchRes = self::execContent($searchRes);
         self::showAlfred($searchRes,$query);
+        //print_r(self::$w->results());
+        echo self::$w->toxml();
     }
 
     /**
@@ -32,6 +42,25 @@ class BaiduSearch{
      * 显示到Alfred
      */ 
     static protected function showAlfred($info,$query){
+        $argu = [
+                'query' => $query,
+                'website' => 'https://www.baidu.com/s?wd='. $query . '#'
+            ];
+        self::getargu($argu);
+        if(!self::$curlError){
+            if(!empty($info))
+            {
+                foreach($info as $v)
+                    self::$w->result(self::getuid(),self::getargu(['copy'=>$v['title'],'url'=>$v['url'] . '#']),$v['title'],$v['weburl'],self::geticon());
+            }else{
+                self::$w->result(self::getuid(),self::getargu(['copy'=>$query]),'好像什么也没搜到，按enter键去百度官网搜索试试',''. $query,self::geticon());
+            }
+        }
+        else 
+        {
+            $error = self::$curlError;
+            self::$w->result(self::getuid(),self::getargu(['copy'=>$query]),'什么也没找到呀，检查下网络试试',$error,self::geticon());
+        }
 
     }
 
@@ -40,18 +69,21 @@ class BaiduSearch{
      */
     static protected function execContent($content)
     {
-        $patt = '#class="result.*?class="t.*?<a.*?href.*?=.*?"(.*?)".*?>(.*?)</a>.*?><.*?class="c-showurl.*?>(.*?)<#si';
+        $patt = '#class="result.*?class="t.*?<a.*?href.*?=.*?"(.*?)".*?>(.*?)</a>.*?class="c-showurl.*?>([^<?].*?)</[^b]#si';
         preg_match_all($patt,$content,$res);
+    #print_r($res[1]);
+    #print_r($res[2]);
+    #print_r($res[3]);
         $searchResLen = count($res[1]);
         if($searchResLen > 0){
             for ($i=0; $i < $searchResLen; $i++) { 
                 $searchRes[$i]['url'] = $res[1][$i];
-                $searchRes[$i]['title'] = str_replace(['<em>','</em>'], '', $res[2][$i]);
-                preg_match('#^([\w-]+\.)+[\w-]+#',$res[3][$i], $tmp_url);
+                $searchRes[$i]['title'] = str_replace(['<em>','</em>','<font color=#CC0000>','</font>'], '', $res[2][$i]);
+                preg_match('#^([\w-]+\.)+[\w-]+#',str_replace(['<b>','</b>'], '', $res[3][$i]), $tmp_url);
                 $searchRes[$i]['weburl'] = empty($tmp_url[0]) ?  '': $tmp_url[0];
             }
         }
-        return $len > 0 ? $searchRes : false; 
+        return $searchResLen > 0 ? $searchRes : false; 
     }
 
     /**
@@ -80,12 +112,37 @@ class BaiduSearch{
         curl_setopt_array($ch, $option);
         $response = curl_exec($ch);
         if (curl_errno($ch) > 0) {
-            self::$curl_error = curl_error($ch);
+            self::$curlError = curl_error($ch);
             //exit("CURL ERROR:$url " . curl_error($ch));
         }
         curl_close($ch);
         return $response;
     }
 
+    /**
+     * 获取节点uid
+     */
+    static protected function getUid()
+    {
+        return time() . mt_rand(1000,9999);
+    }
+    /**
+     * 获取图标
+     */
+    static protected function getIcon($name = ''){
+        return 'baidu.ico';
+    }
+
+    /**
+     * 返回值Argu
+     */
+    static protected function getArgu($info = [],$clean = false)
+    {
+        static $data = [];
+        if($clean === true) 
+            $data = [];
+        $data = array_merge($data,$info);
+        return json_encode($data,JSON_UNESCAPED_UNICODE);
+    } 
 
 }
