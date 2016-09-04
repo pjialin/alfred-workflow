@@ -52,5 +52,4 @@ Ps：如果要使用WorkFlow，你必须[购买](https://www.alfredapp.com/power
 ![](https://raw.githubusercontent.com/pjialin/WorkFlow/master/dsdt/img/HaosouSearch/3.png)
 
 #### 如果你有好的建议欢迎发送给我admin@pjialin.com\~
-
-
+> 建了个交流群，欢迎入坑~ [459987989](http://jq.qq.com/?_wv=1027&k=28lERef)
